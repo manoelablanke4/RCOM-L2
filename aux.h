@@ -18,4 +18,11 @@ struct components {
     char filename[MAX_LENGTH_HOSTNAME];
 };
 
+int parse_url(struct components *c, char* url);
+int compute_response(char* message, char* response, int response_size);
+int send_socket(char* message);
+int create_socket(const char* ip, int port);
+char* get_ip(char* hostname);
+
+
 #endif // PART1_H

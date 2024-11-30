@@ -1,4 +1,4 @@
-#include "part1.h"
+#include "aux.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +7,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-
+int sockfd;
 //código reutilizado do exemplo fornecido
 char* get_ip(char* hostname) {
     struct hostent *h;
@@ -17,10 +17,10 @@ char* get_ip(char* hostname) {
     }
     return inet_ntoa(*((struct in_addr *) h->h_addr));
 }
-
-int create_socket(const char* ip, int port ){
-    int sockfd;
+int create_socket(const char* ip, int port){
     struct sockaddr_in server_addr;
+    char buf[1024]; // Buffer para armazenar a resposta do servidor
+    ssize_t bytes;
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         perror("socket()");
@@ -36,24 +36,29 @@ int create_socket(const char* ip, int port ){
         perror("connect()");
         exit(-1);
     }
+    printf("Connection estabilished\n");
+    bytes = read(sockfd, buf, sizeof(buf) - 1);
+    if (bytes > 0) {
+        buf[bytes] = '\0'; // Garantir terminação da string
+        printf("\n%s", buf);
+    } else {
+        perror("read()");
+    }
 
     return sockfd;
 }
 
-int send_socket(int sockfd, char* message){
+int send_socket(char* message){
     size_t bytes;
     bytes = write(sockfd, message, strlen(message));
-    if
-    if (bytes > 0)
-        printf("Written Bytes %ld\n", bytes);
-    else {
+    if (bytes < 0){
         perror("write()");
         exit(-1);
     }
     return 0;
 }
 
-int close_socket(int sockfd){
+int close_socket(int* sockfd){
     if (close(sockfd)<0) {
         perror("close()");
         exit(-1);
@@ -63,7 +68,7 @@ int close_socket(int sockfd){
 
 //exemplo de url= ftp://[<user>:<password>@]<host>/<url-path>
 
-int parse_url(components* c, char* url){
+int parse_url(struct components *c, char* url){
     char* check = strstr(url, "ftp://");
     if(check == NULL){
         printf("Invalid URL: doesn't contain ftp://\n");
@@ -77,7 +82,7 @@ int parse_url(components* c, char* url){
     }
     strncpy(c->username, check, user-check);
     if(strlen(c->username) == 0){
-        c->username = "anonymous";
+        strcpy(c->username, "anonymous");
     }
     c->username[user-check] = '\0';
     check = user+1;
@@ -88,7 +93,7 @@ int parse_url(components* c, char* url){
     }
     strncpy(c->password, check, pass-check);
     if(strlen(c->password) == 0){
-        c->password = "";
+        strcpy(c->password, "");
     }
     c->password[pass-check] = '\0';
     check = pass+1;
@@ -117,13 +122,26 @@ int parse_url(components* c, char* url){
     return 0;
 }
 
-int compute_response(int sockfd, char* message, char* response, int response_size){
-    if(send_socket(sockfd, message) < 0){
+int compute_response(char* message, char* response, int response_size){
+    char buf[1024]; // Buffer para armazenar a resposta do servidor
+    ssize_t bytes;
+    
+    if(send_socket(message) < 0){
         return -1;
     }
-    printf("Sent message: %s\n", message);
+    
+    bytes = read(sockfd, buf, sizeof(buf) - 1);
+    if (bytes > 0) {
+        buf[bytes] = '\0'; // Garantir terminação da string
+        printf("\n%s", buf);
+    } else {
+        perror("read()");
+    }
+    response = buf[0];
+    printf("The response received is: %s\n", response);
+    // printf("Sent message: %s\n", message);
 
-    memset(response, 0, response_size);
+    // memset(response, 0, response_size);
     FILE* fp = fdopen(sockfd, "r");
 
     if(fp == NULL){
@@ -131,7 +149,7 @@ int compute_response(int sockfd, char* message, char* response, int response_siz
         return -1;
     }
 
-   while (!(response[0] >= '1' && response[0] <= '5') || response[3] != ' '){
+    while (!(response[0] >= '1' && response[0] <= '5') || response[3] != ' '){
         if(read(response, response_size, fp) == NULL){
             perror("read()");
             return -1;
@@ -165,3 +183,23 @@ int compute_response(int sockfd, char* message, char* response, int response_siz
 
    }
 
+int parse_pasv_response(const char* response, char* ip, int* port) {
+    int x1, x2, x3, x4, p1, p2;
+    char* start = strchr(response, '(');
+    char* end = strchr(response, ')');
+
+    if (!start || !end || end < start) {
+        printf("Invalid PASV response: %s\n", response);
+        return -1;
+    }
+
+    // Extraindo números no formato (x1,x2,x3,x4,p1,p2)
+    if (sscanf(start, "(%d,%d,%d,%d,%d,%d)", &x1, &x2, &x3, &x4, &p1, &p2) != 6) {
+        printf("Failed to parse PASV response: %s\n", response);
+        return -1;
+    }
+
+    // Construindo o IP e calculando a porta
+    *port = p1 * 256 + p2;
+    return 0;
+}
