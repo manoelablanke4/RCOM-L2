@@ -80,67 +80,61 @@ int close_socket(){
 
 //exemplo de url= ftp://[<user>:<password>@]<host>/<url-path>
 
-int parse_url(struct components *c, char* url){
+int parse_url(struct components *c, char* url) {
     char* check = strstr(url, "ftp://");
-    if(check == NULL){
+    if (check == NULL) {
         printf("Invalid URL: doesn't contain ftp://\n");
         return -1;
     }
-    check += 6;
-    char* user = strstr(check, ":");
-    if(user == NULL){
-        printf("Invalid URL: missing ':' for username\n");
-        return -1;
-    }
+    check += 6; // Avança para o conteúdo após "ftp://"
 
-    memset(c->username, 0, sizeof(c->username));
-    strncpy(c->username, check, user-check);
-    if(strlen(c->username) == 0){
+    // Verifica se há username e password ou pula direto para o hostname
+    char* at = strchr(check, '@');
+    if (at != NULL) {
+        // Extrai username
+        char* colon = strchr(check, ':');
+        if (colon != NULL && colon < at) {
+            strncpy(c->username, check, colon - check);
+            c->username[colon - check] = '\0';
+
+            check = colon + 1; // Avança para a senha
+            strncpy(c->password, check, at - check);
+            c->password[at - check] = '\0';
+        } else {
+            printf("Invalid URL: missing ':' for username/password\n");
+            return -1;
+        }
+        check = at + 1; // Avança para o hostname
+    } else {
+        // Define valores padrão para username e password
         strcpy(c->username, "anonymous");
-    }
-    c->username[user-check] = '\0';
-    check = user+1;
-    char* pass = strstr(check, "@");
-    if(pass == NULL){
-        printf("Invalid URL: missing '@' for password\n");
-        return -1;
+        strcpy(c->password, "anonymous");
     }
 
-    memset(c->password, 0, sizeof(c->password));   
-    strncpy(c->password, check, pass-check);
-    if(strlen(c->password) == 0){
-        strcpy(c->password, "");
-    }
-    c->password[pass-check] = '\0';
-    check = pass+1;
-    char* host = strstr(check, "/");
-    if(host == NULL){
-        printf("Invalid URL: missing '/' for host\n");
-        return -1;
-    }
-    memset(c->hostname, 0, sizeof(c->hostname));
-    strncpy(c->hostname, check, host-check);
-    c->hostname[host-check] = '\0';
-    check = pass + 1;
-    char* url_path = strstr(check, "/");
-    if(url_path == NULL){
+    // Extrai hostname
+    char* slash = strchr(check, '/');
+    if (slash == NULL) {
         printf("Invalid URL: missing '/' for path\n");
         return -1;
     }
-    memset(c->path, 0, sizeof(c->path));
-    strncpy(c->path, url_path, url_path-check);
-    c->path[url_path-check] = '\0'; 
-    
-    char* file_name = strrchr(url_path, '/');
-    if(file_name == NULL){
+    strncpy(c->hostname, check, slash - check);
+    c->hostname[slash - check] = '\0';
+
+    check = slash + 1; // Avança para o caminho
+
+    // Extrai path e filename
+    char* file_name = strrchr(check, '/');
+    if (file_name == NULL) {
         printf("Invalid URL: missing '/' for filename\n");
         return -1;
     }
-    memset(c->filename, 0, sizeof(c->filename));
-    strcpy(c->filename, file_name+1);
+    strncpy(c->path, check, file_name - check);
+    c->path[file_name - check] = '\0';
+
+    strcpy(c->filename, file_name + 1);
+
     return 0;
 }
-
 int read_socket(char* response, size_t response_size){
 
     FILE* fp = fdopen(sockfd, "r");

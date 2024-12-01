@@ -53,6 +53,9 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    printf("The path is %s\n", c.path);
+    printf("The file is %s\n", c.filename);
+
     // Fechar a conexão
     if (close_socket() < 0) {
         perror("close()");
