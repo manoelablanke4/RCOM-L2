@@ -21,6 +21,7 @@ int create_socket(const char* ip, int port){
     struct sockaddr_in server_addr;
     char buf[1024]; // Buffer para armazenar a resposta do servidor
     ssize_t bytes;
+    memset(buf, 0, sizeof(buf));
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         perror("socket()");
@@ -37,28 +38,39 @@ int create_socket(const char* ip, int port){
         exit(-1);
     }
     printf("Connection estabilished\n");
-    bytes = read(sockfd, buf, sizeof(buf) - 1);
-    if (bytes > 0) {
-        buf[bytes] = '\0'; // Garantir terminação da string
-        printf("\n%s", buf);
-    } else {
-        perror("read()");
-    }
 
     return sockfd;
 }
 
-int send_socket(char* message){
+int send_socket(char* message, char* header){
     size_t bytes;
-    bytes = write(sockfd, message, strlen(message));
-    if (bytes < 0){
+
+    bytes = write(sockfd, header, strlen(header));
+    if (bytes != strlen(header)) {
         perror("write()");
         exit(-1);
     }
+    bytes = write(sockfd, " ", 1);
+    if (bytes != 1) {
+        perror("write()");
+        exit(-1);
+    }
+    bytes = write(sockfd, message, strlen(message));
+    if (bytes != strlen(message)) {
+        perror("write()");
+        exit(-1);
+    }
+    bytes = write(sockfd, "\n", 1);
+    if (bytes != 1) {
+        perror("write()");
+        exit(-1);
+    }
+    printf("%s %s\n", header, message);
+
     return 0;
 }
 
-int close_socket(int* sockfd){
+int close_socket(){
     if (close(sockfd)<0) {
         perror("close()");
         exit(-1);
@@ -80,6 +92,8 @@ int parse_url(struct components *c, char* url){
         printf("Invalid URL: missing ':' for username\n");
         return -1;
     }
+
+    memset(c->username, 0, sizeof(c->username));
     strncpy(c->username, check, user-check);
     if(strlen(c->username) == 0){
         strcpy(c->username, "anonymous");
@@ -91,6 +105,8 @@ int parse_url(struct components *c, char* url){
         printf("Invalid URL: missing '@' for password\n");
         return -1;
     }
+
+    memset(c->password, 0, sizeof(c->password));   
     strncpy(c->password, check, pass-check);
     if(strlen(c->password) == 0){
         strcpy(c->password, "");
@@ -102,6 +118,7 @@ int parse_url(struct components *c, char* url){
         printf("Invalid URL: missing '/' for host\n");
         return -1;
     }
+    memset(c->hostname, 0, sizeof(c->hostname));
     strncpy(c->hostname, check, host-check);
     c->hostname[host-check] = '\0';
     check = pass + 1;
@@ -110,78 +127,71 @@ int parse_url(struct components *c, char* url){
         printf("Invalid URL: missing '/' for path\n");
         return -1;
     }
+    memset(c->path, 0, sizeof(c->path));
     strncpy(c->path, url_path, url_path-check);
-    c->path[url_path-check] = '\0';
+    c->path[url_path-check] = '\0'; 
     
     char* file_name = strrchr(url_path, '/');
     if(file_name == NULL){
         printf("Invalid URL: missing '/' for filename\n");
         return -1;
     }
+    memset(c->filename, 0, sizeof(c->filename));
     strcpy(c->filename, file_name+1);
     return 0;
 }
 
-int compute_response(char* message, char* response, int response_size){
-    char buf[1024]; // Buffer para armazenar a resposta do servidor
-    ssize_t bytes;
-    
-    if(send_socket(message) < 0){
-        return -1;
-    }
-    
-    bytes = read(sockfd, buf, sizeof(buf) - 1);
-    if (bytes > 0) {
-        buf[bytes] = '\0'; // Garantir terminação da string
-        printf("\n%s", buf);
-    } else {
-        perror("read()");
-    }
-    response = buf[0];
-    printf("The response received is: %s\n", response);
-    // printf("Sent message: %s\n", message);
+int read_socket(char* response, size_t response_size){
 
-    // memset(response, 0, response_size);
     FILE* fp = fdopen(sockfd, "r");
 
-    if(fp == NULL){
-        perror("fdopen()");
-        return -1;
-    }
+    do {
+        memset(response, 0, sizeof(response));
+        response = fgets(response, response_size, fp);
+        printf("%s", response);
+    } while (!('1' <= response[0] && response[0] <= '5') || response[3] != ' ');
 
-    while (!(response[0] >= '1' && response[0] <= '5') || response[3] != ' '){
-        if(read(response, response_size, fp) == NULL){
-            perror("read()");
-            return -1;
-        }
-    }
+    // response = buf[0];    // printf("Sent message: %s\n", message);
 
-    int first_digit = response[0] - '0';
 
-    switch (first_digit){
-        case 1:
-            printf("Received preliminary reply (code 1xx): %s\n", response);
-            break;
-        case 2:
-            printf("Received positive completion reply (code 2xx): %s\n", response);
-            break;
-        case 3:
-            printf("Received positive intermediate reply (code 3xx): %s\n", response);
-            break;
-        case 4:
-            printf("Received transient negative completion reply (code 4xx): %s\n", response);
-            break;
-        case 5:
-            printf("Received permanent negative completion reply (code 5xx): %s\n", response);
-            break;
-        default:
-            printf("Received unknown reply: %s\n", response);
-            break;
-    }
+
+    // if(fp == NULL){
+    //     perror("fdopen()");
+    //     return -1;
+    // }
+
+    // while (!(response[0] >= '1' && response[0] <= '5') || response[3] != ' '){
+    //     if(read(response, response_size, fp) == NULL){
+    //         perror("read()");
+    //         return -1;
+    //     }
+    // }
+
+    // int first_digit = response[0] - '0';
+
+    // switch (first_digit){
+    //     case 1:
+    //         printf("Received preliminary reply (code 1xx): %s\n", response);
+    //         break;
+    //     case 2:
+    //         printf("Received positive completion reply (code 2xx): %s\n", response);
+    //         break;
+    //     case 3:
+    //         printf("Received positive intermediate reply (code 3xx): %s\n", response);
+    //         break;
+    //     case 4:
+    //         printf("Received transient negative completion reply (code 4xx): %s\n", response);
+    //         break;
+    //     case 5:
+    //         printf("Received permanent negative completion reply (code 5xx): %s\n", response);
+    //         break;
+    //     default:
+    //         printf("Received unknown reply: %s\n", response);
+    //         break;
+    // }
 
     return 0;
-
-   }
+}
 
 int parse_pasv_response(const char* response, char* ip, int* port) {
     int x1, x2, x3, x4, p1, p2;
@@ -202,4 +212,30 @@ int parse_pasv_response(const char* response, char* ip, int* port) {
     // Construindo o IP e calculando a porta
     *port = p1 * 256 + p2;
     return 0;
+}
+
+int login(struct components c, char* response){
+    if(send_socket(c.username, "USER") < 0){
+        printf("Error sending USER command\n");
+        return -1;
+    }
+    
+    if(read_socket(response, MAX_LENGTH) < 0){
+        printf("Error sending USER command\n");
+        return -1;
+    }
+
+    if(response[0] != '3'){
+        printf("Error sending username\n");
+        return -1;
+    }
+    if(send_socket(c.password, "PASS") < 0){
+        printf("Error sending PASS command\n");
+        return -1;
+    }
+
+    if(read_socket(response, MAX_LENGTH) < 0){
+        printf("Error sending PASS command\n");
+        return -1;
+    }
 }

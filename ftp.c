@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
     return -1;
     }
     
+    char response[MAX_LENGTH];
     // char buf[1024];
     struct components c;
 
@@ -33,19 +34,27 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-
+    if(read_socket(response, MAX_LENGTH) < 0){
+        printf("Error reading socket\n");
+        return -1;
+    }
+    if (response[0] != '2')
+    {
+        printf("Error connecting to server\n");
+        return -1;
+    }
     // Login
-    char message[1024];
-    sprintf(message, "USER %s\r\n", c.username);
-    
-    if(compute_response(message, NULL, 0) < 0){
-        printf("Error sending USER command\n");
+    if(login(c, response) < 0){
+        printf("Error logging in\n");
+        return -1;
+    }
+    if(response[0] != '2'){
+        printf("Error logging in\n");
         return -1;
     }
 
-
     // Fechar a conexão
-    if (close(sockfd) < 0) {
+    if (close_socket() < 0) {
         perror("close()");
         exit(-1);
     }
