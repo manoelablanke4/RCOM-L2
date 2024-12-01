@@ -65,8 +65,8 @@ int send_socket(char* message, char* header){
         perror("write()");
         exit(-1);
     }
-    printf("%s %s\n", header, message);
 
+    printf("%s %s\n", header, message);
     return 0;
 }
 
@@ -114,76 +114,45 @@ int parse_url(struct components *c, char* url) {
     // Extrai hostname
     char* slash = strchr(check, '/');
     if (slash == NULL) {
-        printf("Invalid URL: missing '/' for path\n");
+        printf("Invalid URL: missing '/' for path or file\n");
         return -1;
     }
     strncpy(c->hostname, check, slash - check);
     c->hostname[slash - check] = '\0';
 
-    check = slash + 1; // Avança para o caminho
+    check = slash + 1; // Avança para o caminho ou arquivo
 
-    // Extrai path e filename
+    // Verifica se há um arquivo no caminho
     char* file_name = strrchr(check, '/');
     if (file_name == NULL) {
-        printf("Invalid URL: missing '/' for filename\n");
-        return -1;
+        // Não há subdiretórios; o que resta é o arquivo
+        strcpy(c->path, ""); // Caminho vazio (diretório raiz)
+        strcpy(c->filename, check);
+    } else {
+        // Há subdiretórios; separa caminho e arquivo
+        strncpy(c->path, check, file_name - check);
+        c->path[file_name - check] = '\0';
+        strcpy(c->filename, file_name + 1);
     }
-    strncpy(c->path, check, file_name - check);
-    c->path[file_name - check] = '\0';
-
-    strcpy(c->filename, file_name + 1);
 
     return 0;
 }
 int read_socket(char* response, size_t response_size){
 
     FILE* fp = fdopen(sockfd, "r");
-
+    if(fp == NULL){
+        perror("fdopen()");
+        return -1;
+    }
     do {
-        memset(response, 0, sizeof(response));
-        response = fgets(response, response_size, fp);
+        memset(response, 0, response_size);
+        if (fgets(response, response_size, fp) == NULL) {
+        perror("fgets()");
+        return -1; // Erro ao ler do socket
+        }
         printf("%s", response);
     } while (!('1' <= response[0] && response[0] <= '5') || response[3] != ' ');
-
-    // response = buf[0];    // printf("Sent message: %s\n", message);
-
-
-
-    // if(fp == NULL){
-    //     perror("fdopen()");
-    //     return -1;
-    // }
-
-    // while (!(response[0] >= '1' && response[0] <= '5') || response[3] != ' '){
-    //     if(read(response, response_size, fp) == NULL){
-    //         perror("read()");
-    //         return -1;
-    //     }
-    // }
-
-    // int first_digit = response[0] - '0';
-
-    // switch (first_digit){
-    //     case 1:
-    //         printf("Received preliminary reply (code 1xx): %s\n", response);
-    //         break;
-    //     case 2:
-    //         printf("Received positive completion reply (code 2xx): %s\n", response);
-    //         break;
-    //     case 3:
-    //         printf("Received positive intermediate reply (code 3xx): %s\n", response);
-    //         break;
-    //     case 4:
-    //         printf("Received transient negative completion reply (code 4xx): %s\n", response);
-    //         break;
-    //     case 5:
-    //         printf("Received permanent negative completion reply (code 5xx): %s\n", response);
-    //         break;
-    //     default:
-    //         printf("Received unknown reply: %s\n", response);
-    //         break;
-    // }
-
+    
     return 0;
 }
 
@@ -204,21 +173,21 @@ int parse_pasv_response(const char* response, char* ip, int* port) {
     }
 
     // Construindo o IP e calculando a porta
-    *port = p1 * 256 + p2;
+    sprintf(ip, "%d.%d.%d.%d", x1, x2, x3, x4);
+    port = p1 * 256 + p2;
     return 0;
 }
 
 int login(struct components c, char* response){
+
     if(send_socket(c.username, "USER") < 0){
         printf("Error sending USER command\n");
         return -1;
     }
-    
     if(read_socket(response, MAX_LENGTH) < 0){
         printf("Error sending USER command\n");
         return -1;
     }
-
     if(response[0] != '3'){
         printf("Error sending username\n");
         return -1;
@@ -227,7 +196,6 @@ int login(struct components c, char* response){
         printf("Error sending PASS command\n");
         return -1;
     }
-
     if(read_socket(response, MAX_LENGTH) < 0){
         printf("Error sending PASS command\n");
         return -1;
