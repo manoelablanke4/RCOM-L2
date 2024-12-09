@@ -22,11 +22,11 @@ struct components {
 
 int parse_url(struct components *c, char* url);
 // int compute_response(char* message, char* response, int response_size);
-int send_socket(char* message, char* header);
+int send_socket(int sockfd,char* message, char* header);
 int create_socket(const char* ip, int port);
 char* get_ip(char* hostname);
 int close_socket();
-int read_socket(char* response, size_t response_size);
-int login(struct components c, char* response);
+int read_socket(int sockfd,char* response, size_t response_size);
+int login(int sockfd, struct components c, char* response);
 int parse_pasv_response(const char* response, char* ip, int* port);
 #endif

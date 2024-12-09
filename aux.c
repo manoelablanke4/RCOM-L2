@@ -7,7 +7,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-int sockfd;
 //código reutilizado do exemplo fornecido
 char* get_ip(char* hostname) {
     struct hostent *h;
@@ -19,15 +18,12 @@ char* get_ip(char* hostname) {
 }
 int create_socket(const char* ip, int port){
     struct sockaddr_in server_addr;
-    char buf[1024]; // Buffer para armazenar a resposta do servidor
-    ssize_t bytes;
-    memset(buf, 0, sizeof(buf));
+    int sockfd;
 
     if((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0){
         perror("socket()");
         exit(-1);
     }
-
     bzero((char *) &server_addr, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(ip);
@@ -42,35 +38,25 @@ int create_socket(const char* ip, int port){
     return sockfd;
 }
 
-int send_socket(char* message, char* header){
-    size_t bytes;
+int send_socket(int sockfd, char* message, char* header){
+    char buffer[1024]; // Buffer para armazenar a mensagem completa
+    int total_bytes;
 
-    bytes = write(sockfd, header, strlen(header));
-    if (bytes != strlen(header)) {
-        perror("write()");
-        exit(-1);
-    }
-    bytes = write(sockfd, " ", 1);
-    if (bytes != 1) {
-        perror("write()");
-        exit(-1);
-    }
-    bytes = write(sockfd, message, strlen(message));
-    if (bytes != strlen(message)) {
-        perror("write()");
-        exit(-1);
-    }
-    bytes = write(sockfd, "\n", 1);
-    if (bytes != 1) {
-        perror("write()");
-        exit(-1);
-    }
+    // Monta a mensagem no buffer
+    snprintf(buffer, sizeof(buffer), "%s %s\n", header, message);
 
-    printf("%s %s\n", header, message);
+    // Envia a mensagem completa em uma única chamada
+    total_bytes = write(sockfd, buffer, strlen(buffer));
+    if (total_bytes != strlen(buffer)) {
+        perror("write()");
+        exit(-1);
+    } 
+    printf("%s\n", buffer);
+
     return 0;
 }
 
-int close_socket(){
+int close_socket(int sockfd){
     if (close(sockfd)<0) {
         perror("close()");
         exit(-1);
@@ -137,22 +123,25 @@ int parse_url(struct components *c, char* url) {
 
     return 0;
 }
-int read_socket(char* response, size_t response_size){
+int read_socket(int sockfd, char* response, size_t response_size){
 
+    char bytes;
     FILE* fp = fdopen(sockfd, "r");
     if(fp == NULL){
         perror("fdopen()");
         return -1;
     }
-    do {
-        memset(response, 0, response_size);
+    while (1) {
+        memset(response, 0, response_size); // Limpa o buffer
         if (fgets(response, response_size, fp) == NULL) {
-        perror("fgets()");
-        return -1; // Erro ao ler do socket
+            break;
+        }
+        if(response[3] == ' '){
+            printf("%s", response);
+            break;
         }
         printf("%s", response);
-    } while (!('1' <= response[0] && response[0] <= '5') || response[3] != ' ');
-    
+    }
     return 0;
 }
 
@@ -174,17 +163,19 @@ int parse_pasv_response(const char* response, char* ip, int* port) {
 
     // Construindo o IP e calculando a porta
     sprintf(ip, "%d.%d.%d.%d", x1, x2, x3, x4);
-    port = p1 * 256 + p2;
+    *port = p1 * 256 + p2;
+    printf("Port: %d\n", *port);
+
     return 0;
 }
 
-int login(struct components c, char* response){
+int login(int sockfd, struct components c, char* response){
 
-    if(send_socket(c.username, "USER") < 0){
+    if(send_socket(sockfd,c.username, "USER") < 0){
         printf("Error sending USER command\n");
         return -1;
     }
-    if(read_socket(response, MAX_LENGTH) < 0){
+    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
         printf("Error sending USER command\n");
         return -1;
     }
@@ -192,11 +183,11 @@ int login(struct components c, char* response){
         printf("Error sending username\n");
         return -1;
     }
-    if(send_socket(c.password, "PASS") < 0){
+    if(send_socket(sockfd,c.password, "PASS") < 0){
         printf("Error sending PASS command\n");
         return -1;
     }
-    if(read_socket(response, MAX_LENGTH) < 0){
+    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
         printf("Error sending PASS command\n");
         return -1;
     }

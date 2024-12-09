@@ -9,7 +9,6 @@
 
 #define SERVER_PORT 21 // Porta padrão do FTP
 
-extern int sockfd;
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -27,41 +26,40 @@ int main(int argc, char* argv[]) {
     }
 
     char* host_ip = get_ip(c.hostname);
-    int sockfd;
-
-    if(create_socket(host_ip, SERVER_PORT) < 0){
-        printf("Error creating socket\n");
-        return -1;
-    }
+    int sockfd = create_socket(host_ip, SERVER_PORT);
     
-    if(read_socket(response, MAX_LENGTH) < 0){
+    // if(create_socket(host_ip, SERVER_PORT) < 0){
+    //     printf("Error creating socket\n");
+    //     return -1;
+    // }
+    
+    if(read_socket(sockfd, response, MAX_LENGTH) < 0){
         printf("Error reading socket\n");
         return -1;
     }
+
     if (response[0] != '2')
     {
         printf("Error connecting to server\n");
         return -1;
     }
     // Login
-    if(login(c, response) < 0){
+    if(login(sockfd,c, response) < 0){
         printf("Error logging in\n");
         return -1;
     }
-
     if(response[0] != '2'){
         printf("Error logging in\n");
         return -1;
     }
-
     //Change dir
     if(c.path[0] != '\0')
     {   
-        if(send_socket(c.path, "CWD") < 0){
+        if(send_socket(sockfd,c.path, "CWD") < 0){
             printf("Error changing directory\n");
             return -1;
         }
-        if(read_socket(response, MAX_LENGTH) < 0){
+        if(read_socket(sockfd,response, MAX_LENGTH) < 0){
             printf("Error reading socket\n");
             return -1;
         }
@@ -74,11 +72,11 @@ int main(int argc, char* argv[]) {
     char ip[MAX_LENGTH];
 
     //Passive mode
-    if(send_socket("", "PASV") < 0){
+    if(send_socket(sockfd,"", "pasv") < 0){
         printf("Error entering passive mode\n");
         return -1;
     }
-    if(read_socket(response, MAX_LENGTH) < 0){
+    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
         printf("Error reading socket\n");
         return -1;
     }
@@ -86,22 +84,28 @@ int main(int argc, char* argv[]) {
         printf("Error entering passive mode\n");
         return -1;
     }
-    if(parse_pasv_response(response, ip, port) < 0){
+    if(parse_pasv_response(response, ip, &port) < 0){
         printf("Error parsing PASV response\n");
         return -1;
     }
+    printf("IP: %s\n", ip);
+    printf("Port: %d\n", port);
 
-    if(create_socket(ip, port) < 0){
-        printf("Error creating socket\n");
+    sockfd = create_socket(ip, port);
+    // if(create_socket(ip, port) < 0){
+    //     printf("Error creating socket\n");
+    //     return -1;
+    // }
+    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
+        printf("Error reading socket\n");
         return -1;
     }
-
     //Retrieving file
-    if(send_socket(c.filename, "RETR") < 0){
+    if(send_socket(sockfd,c.filename, "RETR") < 0){
         printf("Error retrieving file\n");
         return -1;
     }
-    if(read_socket(response, MAX_LENGTH) < 0){
+    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
         printf("Error reading socket\n");
         return -1;
     }
