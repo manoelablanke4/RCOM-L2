@@ -43,7 +43,7 @@ int send_socket(int sockfd, char* message, char* header){
     int total_bytes;
 
     // Monta a mensagem no buffer
-    snprintf(buffer, sizeof(buffer), "%s %s\n", header, message);
+    snprintf(buffer, sizeof(buffer), "%s %s\r\n", header, message);
 
     // Envia a mensagem completa em uma única chamada
     total_bytes = write(sockfd, buffer, strlen(buffer));
@@ -200,10 +200,10 @@ int send_retr_command(int sockfd, const char* filename, char* response, size_t r
         return -1;
     }
 
-    if (read_socket(sockfd, response, response_size) < 0) {
-        printf("Error reading RETR response\n");
-        return -1;
-    }
+    // if (read_socket(sockfd, response, MAX_LENGTH) < 0) {
+    //     printf("Error reading RETR response\n");
+    //     return -1;
+    // }
 
     if (response[0] == '1' || response[0] == '2') {
         return 0;
@@ -214,7 +214,7 @@ int send_retr_command(int sockfd, const char* filename, char* response, size_t r
 
 }
 
-int download_file(int data_sockfd, const char* local_filename) {
+int download_file(int sockfd, const char* local_filename) {
     FILE* file = fopen(local_filename, "wb"); 
     if (file == NULL) {
         perror("Error opening local file");
@@ -223,10 +223,9 @@ int download_file(int data_sockfd, const char* local_filename) {
 
     char buffer[1024]; 
     ssize_t bytes_read;
-
-    printf("Downloading file %s\n", local_filename);   
-    while ((bytes_read = read(data_sockfd, buffer, sizeof(buffer))) > 0) {
-        if (bytes_read < 0) {
+    while ((bytes_read = read(sockfd, buffer, sizeof(buffer))) > 0) {
+        printf("Downloading file %s\n", local_filename);
+        if (bytes_read <= 0) {
         perror("Error reading from data socket");
         fclose(file);
         return -1;
@@ -237,11 +236,10 @@ int download_file(int data_sockfd, const char* local_filename) {
             return -1;
         }
     }
-
+    printf("Downloading file %s\n", local_filename);   
    
 
     fclose(file);
-    close(data_sockfd);
     printf("File downloaded successfully as %s\n", local_filename);
 
     return 0;

@@ -93,23 +93,15 @@ int main(int argc, char* argv[]) {
 
    sockfd = create_socket(ip, port);
 
-   if(read_socket(sockfd,response, MAX_LENGTH) < 0){
-        printf("Error reading socket\n");
-        return -1;
-    }
-
-    if(create_socket(ip, port) < 0){
-        printf("Error creating socket\n");
-        return -1;
-    }
-   
+//    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
+//         printf("Error reading socket\n");
+//         return -1;
+//     }
     // Retrieving file
- 
     if (send_retr_command(sockfd, c.filename, response, MAX_LENGTH) < 0) {
     printf("Failed to retrieve file: %s\n", c.filename);
     return -1;
 }
-
     if (download_file(sockfd, c.filename) < 0) {
     printf("Failed to download file: %s\n", c.filename);
 
