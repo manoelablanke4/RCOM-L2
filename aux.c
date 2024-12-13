@@ -157,7 +157,6 @@ int parse_pasv_response(const char* response, char* ip, int* port) {
     // Construindo o IP e calculando a porta
     sprintf(ip, "%d.%d.%d.%d", x1, x2, x3, x4);
     *port = p1 * 256 + p2;
-    printf("Port: %d\n", *port);
 
     return 0;
 }
@@ -198,7 +197,6 @@ int send_retr_command(int sockfd, const char* filename, char* response, size_t r
     //     printf("Error reading RETR response\n");
     //     return -1;
     // }
-    printf("Response: %s\n", response);
     if (response[0] == '1' || response[0] == '2') {
         return 0;
     } else {

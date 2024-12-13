@@ -88,8 +88,6 @@ int main(int argc, char* argv[]) {
         printf("Error parsing PASV response\n");
         return -1;
     }
-    printf("IP: %s\n", ip);
-    printf("Port: %d\n", port);
 
    int data_sockfd = create_socket(ip, port);
 
