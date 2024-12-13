@@ -56,13 +56,6 @@ int send_socket(int sockfd, char* message, char* header){
     return 0;
 }
 
-int close_socket(int sockfd){
-    if (close(sockfd)<0) {
-        perror("close()");
-        exit(-1);
-    }
-    return 0;
-}
 
 //exemplo de url= ftp://[<user>:<password>@]<host>/<url-path>
 
@@ -195,6 +188,7 @@ int login(int sockfd, struct components c, char* response){
 }
 
 int send_retr_command(int sockfd, const char* filename, char* response, size_t response_size) {
+    printf("Sending RETR command\n");
     if (send_socket(sockfd, filename, "RETR") < 0) {
         printf("Error sending RETR command\n");
         return -1;
@@ -204,7 +198,7 @@ int send_retr_command(int sockfd, const char* filename, char* response, size_t r
     //     printf("Error reading RETR response\n");
     //     return -1;
     // }
-
+    printf("Response: %s\n", response);
     if (response[0] == '1' || response[0] == '2') {
         return 0;
     } else {
@@ -242,5 +236,15 @@ int download_file(int sockfd, const char* local_filename) {
     fclose(file);
     printf("File downloaded successfully as %s\n", local_filename);
 
+    return 0;
+}
+int close_socket(int sockfd) {
+    if (sockfd != -1) {  // Check if socket is still open
+        if (close(sockfd) < 0) {
+            perror("Error closing socket");
+            return -1;
+        }
+        sockfd = -1;  // Mark the socket as closed
+    }
     return 0;
 }
