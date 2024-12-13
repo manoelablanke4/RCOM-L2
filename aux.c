@@ -191,4 +191,58 @@ int login(int sockfd, struct components c, char* response){
         printf("Error sending PASS command\n");
         return -1;
     }
+    return 0;
+}
+
+int send_retr_command(int sockfd, const char* filename, char* response, size_t response_size) {
+    if (send_socket(sockfd, filename, "RETR") < 0) {
+        printf("Error sending RETR command\n");
+        return -1;
+    }
+
+    if (read_socket(sockfd, response, response_size) < 0) {
+        printf("Error reading RETR response\n");
+        return -1;
+    }
+
+    if (response[0] == '1' || response[0] == '2') {
+        return 0;
+    } else {
+        printf("Error retrieving file: %s\n", response);
+        return -1;
+    }
+
+}
+
+int download_file(int data_sockfd, const char* local_filename) {
+    FILE* file = fopen(local_filename, "wb"); 
+    if (file == NULL) {
+        perror("Error opening local file");
+        return -1;
+    }
+
+    char buffer[1024]; 
+    ssize_t bytes_read;
+
+    printf("Downloading file %s\n", local_filename);   
+    while ((bytes_read = read(data_sockfd, buffer, sizeof(buffer))) > 0) {
+        if (bytes_read < 0) {
+        perror("Error reading from data socket");
+        fclose(file);
+        return -1;
+    }
+        if(fwrite(buffer, bytes_read,1, file) < 0){
+            perror("Error writing to file");
+            fclose(file);
+            return -1;
+        }
+    }
+
+   
+
+    fclose(file);
+    close(data_sockfd);
+    printf("File downloaded successfully as %s\n", local_filename);
+
+    return 0;
 }

@@ -26,7 +26,10 @@ int send_socket(int sockfd,char* message, char* header);
 int create_socket(const char* ip, int port);
 char* get_ip(char* hostname);
 int close_socket();
+int download_file(int data_sockfd, const char* local_filename);
 int read_socket(int sockfd,char* response, size_t response_size);
 int login(int sockfd, struct components c, char* response);
 int parse_pasv_response(const char* response, char* ip, int* port);
+int send_retr_command(int sockfd, const char* filename, char* response, size_t response_size);
+
 #endif

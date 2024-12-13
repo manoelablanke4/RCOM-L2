@@ -91,28 +91,30 @@ int main(int argc, char* argv[]) {
     printf("IP: %s\n", ip);
     printf("Port: %d\n", port);
 
-    sockfd = create_socket(ip, port);
-    // if(create_socket(ip, port) < 0){
-    //     printf("Error creating socket\n");
-    //     return -1;
-    // }
-    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
+   sockfd = create_socket(ip, port);
+
+   if(read_socket(sockfd,response, MAX_LENGTH) < 0){
         printf("Error reading socket\n");
         return -1;
     }
-    //Retrieving file
-    if(send_socket(sockfd,c.filename, "RETR") < 0){
-        printf("Error retrieving file\n");
+
+    if(create_socket(ip, port) < 0){
+        printf("Error creating socket\n");
         return -1;
     }
-    if(read_socket(sockfd,response, MAX_LENGTH) < 0){
-        printf("Error reading socket\n");
-        return -1;
-    }
-    if(response[0] != '2'){
-        printf("Error retrieving file\n");
-        return -1;
-    }
+   
+    // Retrieving file
+ 
+    if (send_retr_command(sockfd, c.filename, response, MAX_LENGTH) < 0) {
+    printf("Failed to retrieve file: %s\n", c.filename);
+    return -1;
+}
+
+    if (download_file(sockfd, c.filename) < 0) {
+    printf("Failed to download file: %s\n", c.filename);
+
+    return -1;
+}
     // Fechar a conexão
     if(close_socket() < 0){
         printf("Error closing socket\n");
