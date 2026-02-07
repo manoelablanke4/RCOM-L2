@@ -39,12 +39,35 @@ The system ensures reliable data transfer despite possible transmission errors b
 
 ---
 
-## 🧱 Project Structure
+## 📁 Repository Structure
 
-- `src/` – Source code implementing the protocol logic  
-- `include/` – Header files  
-- `docs/` – Project documentation and reports (if applicable)  
-- `Makefile` – Build configuration  
+- `clientTCP.c` — Main program (FTP client entry point)
+- `ftp.c` — FTP protocol logic (control connection commands, passive mode, download)
+- `getip.c` — Hostname to IP resolution utilities
+- `aux.c`, `aux.h` — Helper functions (I/O, parsing, socket helpers, etc.)
+- `instructions.md` — Lab instructions / notes
+- `Makefile` — Build script
+
+---
+
+## ⚙️ What the Program Does
+
+For an input URL like:
+
+- `ftp://ftp.example.com/pub/file.txt`
+- `ftp://user:password@ftp.example.com/pub/file.txt`
+
+the program:
+
+1. **Parses the FTP URL** (user, password, host, path, filename)
+2. **Resolves the server address** (DNS → IP)
+3. Opens a **TCP control connection** to the FTP server (port 21)
+4. Authenticates using:
+   - Provided `user:password`, or
+   - Anonymous login if none is provided
+5. Requests **passive mode (PASV)** and opens the **TCP data connection**
+6. Sends `RETR` to retrieve the file and **downloads it locally**
+7. Closes connections cleanly
 
 ---
 
@@ -63,3 +86,45 @@ From the project root, compile the project using:
 
 ```bash
 make
+
+## ▶️ Run Instructions
+
+### Basic usage
+
+```bash
+./clientTCP ftp://<host>/<path>/<file>
+```
+
+Example:
+
+```bash
+./clientTCP ftp://ftp.up.pt/pub/file.txt
+```
+
+---
+
+### With authentication
+
+```bash
+./clientTCP ftp://<user>:<password>@<host>/<path>/<file>
+```
+
+Example:
+
+```bash
+./clientTCP ftp://user:password@ftp.example.com/pub/file.txt
+```
+
+---
+
+### Output
+
+- The requested file is downloaded and saved in the current directory using the original filename.
+- The program prints FTP server replies and progress information to the terminal.
+
+---
+
+### Notes
+
+- The client establishes a **TCP control connection** to port 21 and a separate **data connection** using **passive mode (PASV)**.
+- Some FTP servers may restrict anonymous access or block certain passive-mode ports depending on their configuration.
