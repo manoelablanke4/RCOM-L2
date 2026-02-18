@@ -1,107 +1,120 @@
-# RCOM Lab 2 — Data Link Layer Protocol
+# FTP Client Implementation (TCP/IP – Application Layer)
 
-This project was developed for the **Computer Networks (RCOM)** course and focuses on the implementation and analysis of a **reliable data transmission protocol at the Data Link Layer**.
+## Overview
 
-The main goal is to study how reliable communication can be achieved over an unreliable physical medium by implementing mechanisms such as framing, error detection, acknowledgements, and retransmissions.
+This project implements a fully functional FTP client in C using the POSIX/BSD sockets API.  
+It establishes TCP connections to remote FTP servers, authenticates users, enters passive mode, and downloads files using the FTP protocol as defined in RFC 959.
 
----
-
-## 📡 Project Overview
-
-The project simulates a point-to-point communication system between two nodes, implementing a custom **Data Link Layer protocol** on top of a serial connection.
-
-The system ensures reliable data transfer despite possible transmission errors by handling:
-
-- Frame delimitation
-- Error detection
-- Flow control
-- Retransmissions
-- Connection setup and termination
+The goal of the project was to gain a deep understanding of application-layer protocols, TCP/IP communication, and client-server interaction.
 
 ---
 
-## ⚙️ Key Features
+## Architecture
 
-- **Custom framing protocol**  
-  Data is encapsulated into frames with headers and control fields.
+The client follows the standard FTP communication model:
 
-- **Error detection**  
-  Uses error detection mechanisms to identify corrupted frames.
+- **Control Connection (TCP, port 21)**  
+  Used for command exchange and server replies.
 
-- **Stop-and-Wait ARQ**  
-  Ensures reliable delivery through acknowledgements and retransmissions.
+- **Data Connection (TCP, dynamic port via PASV)**  
+  Used exclusively for file transfer.
 
-- **Timeout handling**  
-  Frames are retransmitted if acknowledgements are not received within a time limit.
-
-- **Connection management**  
-  Includes connection establishment and termination procedures.
+This separation reflects the official FTP protocol design and required careful socket management.
 
 ---
 
-## 📁 Repository Structure
+## Implemented FTP Workflow
 
-- `clientTCP.c` — Main program (FTP client entry point)
-- `ftp.c` — FTP protocol logic (control connection commands, passive mode, download)
-- `getip.c` — Hostname to IP resolution utilities
-- `aux.c`, `aux.h` — Helper functions (I/O, parsing, socket helpers, etc.)
-- `instructions.md` — Lab instructions / notes
-- `Makefile` — Build script
+For a given URL such as:
 
----
+```
+ftp://user:password@host/path/file.txt
+```
 
-## ⚙️ What the Program Does
+The client performs the following steps:
 
-For an input URL like:
-
-- `ftp://ftp.example.com/pub/file.txt`
-- `ftp://user:password@ftp.example.com/pub/file.txt`
-
-the program:
-
-1. **Parses the FTP URL** (user, password, host, path, filename)
-2. **Resolves the server address** (DNS → IP)
-3. Opens a **TCP control connection** to the FTP server (port 21)
-4. Authenticates using:
-   - Provided `user:password`, or
-   - Anonymous login if none is provided
-5. Requests **passive mode (PASV)** and opens the **TCP data connection**
-6. Sends `RETR` to retrieve the file and **downloads it locally**
-7. Closes connections cleanly
+1. Parse the FTP URL (user, password, hostname, path, filename)
+2. Resolve hostname to IP address (DNS resolution)
+3. Establish TCP control connection to port 21
+4. Receive and interpret the server’s `220` greeting
+5. Send `USER` and `PASS` commands for authentication
+6. Send `PASV` command and parse server response:
+   - Extract `(h1,h2,h3,h4,p1,p2)`
+   - Compute data port using: `port = p1 * 256 + p2`
+7. Establish TCP data connection to the provided IP and port
+8. Send `RETR` command to request file
+9. Receive file data through the data socket
+10. Close data connection
+11. Send `QUIT` and close control connection
 
 ---
 
-## 🛠️ Technologies Used
+## Key Features
 
-- **C programming language**
-- **POSIX serial communication**
-- **Linux environment**
-- **Makefile-based build system**
+- Full FTP command handling (`USER`, `PASS`, `CWD`, `PASV`, `RETR`, `QUIT`)
+- Passive mode implementation
+- URL parsing with optional authentication
+- DNS resolution
+- FTP response code parsing (3-digit codes)
+- Handling of multi-line server replies
+- Robust error detection and reporting
+- Clean connection termination
 
 ---
 
-## 🔧 Build Instructions
+## Error Handling and Robustness
 
-From the project root, compile the project using:
+The client validates:
+
+- Socket creation and connection errors
+- Server reply codes (2xx, 3xx, 4xx, 5xx)
+- Unexpected protocol states
+- File I/O failures
+- Network interruptions
+
+If any step fails, the client exits gracefully with informative error messages.
+
+---
+
+## Repository Structure
+
+- `clientTCP.c` — Entry point and main workflow
+- `ftp.c` — FTP protocol implementation and command handling
+- `getip.c` — DNS resolution utilities
+- `aux.c`, `aux.h` — Helper functions (parsing, I/O, socket utilities)
+- `Makefile` — Build configuration
+
+---
+
+## Technologies Used
+
+- C programming language
+- POSIX/BSD sockets API
+- TCP/IP networking
+- Linux environment
+- Makefile build system
+
+---
+
+## Build Instructions
+
+From the project root:
 
 ```bash
 make
+```
 
-## ▶️ Run Instructions
+The executable will be generated in the project directory.
+
+---
+
+## Run Instructions
 
 ### Basic usage
 
 ```bash
 ./clientTCP ftp://<host>/<path>/<file>
 ```
-
-Example:
-
-```bash
-./clientTCP ftp://ftp.up.pt/pub/file.txt
-```
-
----
 
 ### With authentication
 
@@ -112,19 +125,33 @@ Example:
 Example:
 
 ```bash
-./clientTCP ftp://user:password@ftp.example.com/pub/file.txt
+./clientTCP ftp://ftp.up.pt/pub/file.txt
 ```
 
 ---
 
-### Output
+## Learning Outcomes
 
-- The requested file is downloaded and saved in the current directory using the original filename.
-- The program prints FTP server replies and progress information to the terminal.
+Through this project, the following concepts were explored in depth:
+
+- Application-layer protocol implementation
+- TCP client-server communication
+- Control vs data channel separation
+- FTP protocol state transitions
+- Parsing structured protocol responses
+- DNS resolution and socket management
+- Robust network programming in C
 
 ---
 
-### Notes
+## Possible Extensions
 
-- The client establishes a **TCP control connection** to port 21 and a separate **data connection** using **passive mode (PASV)**.
-- Some FTP servers may restrict anonymous access or block certain passive-mode ports depending on their configuration.
+- Support for Active Mode (PORT)
+- FTPS (TLS encryption)
+- Resume interrupted downloads
+- Interactive command-line interface
+- Support for directory listing (LIST)
+
+---
+
+This project demonstrates practical understanding of Internet protocols, low-level network programming, and protocol-driven software design.
